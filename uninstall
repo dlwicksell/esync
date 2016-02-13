@@ -1,0 +1,134 @@
+#
+# Package:       esync
+# File:          uninstall
+# Summary:       uninstall script for esyncd
+# Maintainer:    David Wicksell
+# Last Modified: Sep 5, 2014
+#
+# Written by David Wicksell <dlw@linux.com>
+# Copyright © 2010-2014 Fourth Watch Software, LC
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License (AGPL)
+# as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+#
+# This script is written to be run in a Red Hat environment
+# Tweaks maybe needed for other distributions
+#
+# Do NOT set -e
+#
+
+
+if [ "${USER}" != "root" ]; then
+  echo "You must run this script as root."
+
+  exit 1
+fi
+
+echo "Uninstalling the esync package"
+
+if [ -f "/usr/local/bin/esyncd" ]; then
+  rm /usr/local/bin/esyncd
+
+  echo ""
+  echo "Removed /usr/local/bin/esyncd"
+fi
+
+if [ -f /usr/local/share/man/man8/esyncd.8 ]; then
+  rm /usr/local/share/man/man8/esyncd.8
+
+  echo ""
+  echo "Removed /usr/local/share/man/man8/esyncd.8"
+fi
+
+if [ -f /etc/logrotate.d/esync ]; then
+  rm /etc/logrotate.d/esync
+
+  echo ""
+  echo "Removed /etc/logrotate.d/esync"
+fi
+
+
+if [ -f "/etc/init.d/esync" ]; then
+  files=`ls /etc/init.d/esync-*` # Need to grab all the links
+  
+  for i in ${files}
+  do
+    script=`basename ${i}`
+    env=`echo ${script} | sed "s/.*-\(.*\)/\1/"` # Need the instance name
+
+    if [ -f /var/run/esyncd-${env}.pid ]; then
+      echo "Stopping the esync-${env} daemon"
+
+      /sbin/service esync-${env} stop
+    fi
+
+    /sbin/chkconfig --del esync-${env}
+
+    rm ${i}
+
+    echo ""
+    echo "Removed ${i}"
+  done
+
+  rm /etc/init.d/esync
+
+  echo ""
+  echo "Removed /etc/init.d/esync"
+
+  unset files script env 
+fi
+
+# Check to see if syslog has a config for esync
+if [ -f /etc/syslog.conf ]; then
+  grep -q 'esyncd.log' /etc/syslog.conf
+
+  test=$?
+  
+  if [ ${test} = 0 ]; then
+    echo ""
+    echo "Removing esync config from /etc/syslog.conf"
+
+    # Need to remove the config out of the syslog.conf file
+    sed /esync/d /etc/syslog.conf  >j.$$
+    sed '$ {/^$/d}' j.$$           >t.$$
+
+    rm j.$$
+    mv t.$$ /etc/syslog.conf
+  fi
+
+  unset test
+
+  if [ -f /var/run/syslogd.pid ]; then
+    echo ""
+    echo "Reloading the syslog configuration files"
+
+    /sbin/service syslog reload
+  else
+    echo ""
+    echo "Starting the syslog logging daemon"
+
+    /sbin/service syslog start
+  fi
+
+  if [ -f /var/log/esyncd.log ]; then
+    # Keep unfinished log file, but clean up the install
+    mv /var/log/esyncd.log /var/log/esyncd.log-`date "+%Y%m%d"`
+
+    echo ""
+    echo "Rotated current log to /var/log/esyncd.log-`date +"%Y%m%d"`"
+    
+  fi
+fi
+
+echo ""
+echo "uninstall-esync script has finished."
+
+exit 0

@@ -1,0 +1,305 @@
+#
+# Package:       esync
+# File:          install
+# Summary:       install script for esyncd
+# Maintainer:    David Wicksell
+# Last Modified: Sep 5, 2014
+#
+# Written by David Wicksell <dlw@linux.com>
+# Copyright © 2010-2014 Fourth Watch Software, LC
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License (AGPL)
+# as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+#
+# This script is written to be run in a Red Hat environment
+# Tweaks maybe needed for other distributions
+#
+# Do NOT set -e
+#
+
+
+if [ "${USER}" != "root" ]
+then
+  echo "You must run this script as root."
+
+  exit 1
+fi
+
+if [ ! -f "/usr/local/bin/esyncd" ]
+then
+  echo ""
+  echo "You must first make and install the esyncd daemon"
+  echo "From the esync/ directory:"
+  echo -e "\t$ make"
+  echo -e "\t$ sudo make install"
+  echo ""
+  echo "After you are finished with that, rerun this script."
+  echo -e "\t$ sudo ./install"
+
+  exit 1
+fi
+
+os=`lsb_release -is`
+
+if [ "${os}" != "RedHatEnterpriseServer" -a "${os}" != "CentOS" ]
+then
+  echo "This script is intended for a Red Hat environment."
+  echo "You may need to tweak it before running it in this environment."
+
+  exit 1
+fi
+
+unset os
+
+prog=esyncd
+instances=""
+cnt=0
+
+# Look for VistA instances
+for user in `ls /home/`
+do
+  if [ -f /home/${user}/g/default.dat ]
+  then
+    instances[${cnt}]=${user}
+
+    cnt=`expr ${cnt} + 1`
+  fi
+done
+
+unset cnt
+
+if [ "${instances[*]}" == "" ]
+then
+  echo -e "\033[2J\033[H"
+  echo "I couldn't find any VistA instances."
+  echo ""
+  echo -n "Please input the instances you want synced "
+  echo "on one line separated by spaces."
+  echo -e "Like this:\t\"vistap vistat dev demo\"\tbut without the quotes."
+
+  read instances
+
+  # Make instances into an array
+  instances=("${instances}")
+
+  if [ "${instances[*]}" == "" ]
+  then
+    echo ""
+    echo "I give up! If you really want to install ${prog} you"
+    echo "need to run this script again and actually answer the questions."
+
+    exit 1
+  fi
+
+  echo ""
+  echo "You have chosen these instances to sync: ${instances[*]}"
+  echo ""
+  echo "If this is what you want, hit any key. If not, type Control-C to abort."
+
+  read x
+
+  unset x
+else
+  instance=""
+  ans=""
+  sub=0
+  
+  # Menu of possible VistA instances to keep routines synced in
+  while [ "${instance}" != "quit" ]
+  do
+    echo -e "\033[2J\033[H"
+    echo -n "Please choose the number of an instance "
+    echo "that you would like to have synced."
+    echo ""
+    echo "You have chosen these instances so far:"
+    echo "${ans[*]}"
+    echo ""
+    
+    select instance in ${instances[*]} quit
+    do
+      ans[${sub}]=${instance}
+  
+      # If user "quit"s, that isn't a valid instance
+      if [ "${ans[${sub}]}" == "quit" ]
+      then
+        unset ans[${sub}]
+
+        break
+      fi
+   
+      echo ""
+      echo "You have chosen ${ans[${sub}]}."
+      echo -n "Is this correct? ([y]/n) "
+
+      read yorn
+  
+      if [ "${yorn:0:1}" == "n" -o "${yorn:0:1}" == "N" ]
+      then
+        unset ans[${sub}]
+
+        break
+      else
+        sub=`expr ${sub} + 1`
+      fi
+      
+      cnt=0
+
+      # Take the user choice out of the dynamic menu
+      for choice in ${instances[*]}
+      do
+        if [ ${choice} == ${instance} ]
+        then
+          unset instances[${cnt}]
+        fi
+  
+        cnt=`expr ${cnt} + 1`
+      done
+
+      # Reindex the array
+      instances=(${instances[*]})
+  
+      break
+    done
+  done
+  
+  if [ "${ans[*]}" == "" ]
+  then
+    echo ""
+    echo "I give up! If you really want to install ${prog} you"
+    echo "need to run this script again and actually choose an instance."
+
+    exit 1
+  fi
+
+  echo ""
+  echo "You have chosen these instances to sync: ${ans[*]}"
+  echo ""
+  echo "If this is what you want, hit any key. If not, type Control-C to abort."
+
+  read x
+
+  unset x
+
+  # Put their answers into the instance array
+  instances=(${ans[*]})
+fi
+
+install -o root -g root -m 755 esync.init /etc/init.d/esyncd
+echo "Installed ${prog} in /etc/init.d"
+
+cd /etc/init.d/
+echo "Creating symbolic links in /etc/init.d"
+
+for env in ${instances[*]}
+do
+  # Grab the name of the secondary database instance from the environment
+  test=`su - ${env} -c 'echo ${gtm_repl_instsecondary}'`
+
+  if [ "${test}" == "" ]
+  then
+    echo ""
+    echo "You need to define the environment variable gtm_repl_instsecondary"
+    echo "in the ${env} instance environment."
+    echo ""
+    echo "You could put this line in your ~${env}/.bash_profile, or better"
+    echo "yet, in your GT.M environment file."
+    echo -e "\texport gtm_repl_instsecondary=<secondary-hostname>"
+    echo -e "\t\twhere <secondary-hostname> is the same as your"
+    echo -e "\t\tsecondary host for database replication."
+    echo ""
+    echo "Did not install esync package for ${env}, please run again."
+    continue
+  fi
+
+  unset test
+
+  ln -sf ${prog} ${prog}-${env}
+
+  echo "Adding ${prog}-${env} to the appropriate runlevels"
+  echo ""
+
+  /sbin/chkconfig --add ${prog}-${env}
+
+  side=`su - ${env} -c 'echo ${REPL_SIDE}'`
+
+  # Only want to start esyncd on the primary, not the secondary
+  if [ "${side}" = "PRIMARY" ]
+  then 
+    if [ -f /var/run/esyncd-${env}.pid ]
+    then
+      echo "Restarting the esync-${env} daemon"
+      /sbin/service esync-${env} restart
+    else
+      echo "Starting the esync-${env} daemon"
+      /sbin/service esync-${env} start
+    fi
+  fi
+done
+
+unset side
+
+cd - >/dev/null
+
+
+if [ ! -d /usr/local/share/man/man8 ]
+then
+  mkdir -p /usr/local/share/man/man8
+fi
+
+install -o root -g root -m 644 esyncd.8 /usr/local/share/man/man8
+
+echo ""
+echo "Installed esyncd(8) manpage"
+
+
+if [ -f /etc/syslog.conf ]
+then
+  grep -q 'esyncd.log' /etc/syslog.conf
+  test=$?
+  
+  if [ ${test} = 1 ]
+  then
+    echo ""
+    echo "Setting up syslog for esyncd"
+    echo ""                                                >>/etc/syslog.conf
+    echo -n "# Save esync messages here "           >>/etc/syslog.conf
+    echo "(local mod for GT.M replication)."               >>/etc/syslog.conf
+    echo -e "local0.*\t\t\t\t\t/var/log/esyncd.log" >>/etc/syslog.conf
+  fi
+
+  unset test
+
+  if [ -f /var/run/syslogd.pid ]
+  then
+    echo ""
+    echo "Reloading the syslog configuration files"
+    /sbin/service syslog reload
+  else
+    echo "Starting the syslog logging daemon"
+    /sbin/service syslog start
+  fi
+fi
+
+if [ ! -d /etc/logrotate.d ]
+then
+  mkdir /etc/logrotate.d
+fi
+
+echo ""
+echo "Setting up logrotate for esyncd"
+
+install -o root -g root -m 644 \
+    esync.logrotate /etc/logrotate.d/esync
+
+echo ""
+echo "install script has finished."
+
+exit 0

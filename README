@@ -1,0 +1,64 @@
+Package:       esync
+File:          README
+Summary:       documentation for esync daemon
+Maintainer:    David Wicksell
+Last Modified: Sep 5, 2014
+
+Written by David Wicksell <dlw@linux.com>
+Copyright © 2010-2014 Fourth Watch Software, LC
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License (AGPL)
+as published by the Free Software Foundation, either version 3 of
+the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+
+ATTENTION: This package is written to be run in a Red Hat environment
+           Tweaks maybe needed for other distributions
+
+This is a daemon program that uses the inotify kernel calls to keep
+directories of files synced between a primary and secondary host.
+
+It was written as part of the infrastructure for a VistA system. Though
+this daemon is generic enough to keep any files synced between two hosts,
+the configure script, and the init script are written specifically to keep
+M[UMPS] routines using GT.M synced between a primary and a secondary
+replication instance of GT.M. That way, the routines that act on the data in
+a GT.M system are always kept the same on the secondary database instance as
+they are on the primary.
+
+To install this, you untar the tarball, as you've already done..
+    $ tar xfz esync-0.1.tgz
+
+Then you move to the resulting esync/ directory..
+    $ cd esync/
+
+Then you run make to compile the daemon..
+    $ make
+
+Then you run make install as root to install the daemon.. 
+    $ sudo make install
+
+Then you run the esync-install script as root to install the init
+script, add it to the appropriate system runlevels, install the man page
+for the daemon, and startup the various esyncd daemons..
+    $ sudo ./install-esync
+
+That is pretty much all there is to it. If you have questions on how
+to use the esyncd daemon, consult the man page..
+    $ man esyncd
+
+To uninstall the esync package..
+    $ sudo ./uninstall-esync
+
+If you need to clean up the object files, and the ELF executable, locally..
+    $ make clean
+
+If you have any further questions you can contact:
+      David Wicksell of Fourth Watch Software, LC
+      at dlw@linux.com or (575)636-2229

@@ -1,0 +1,68 @@
+.\"
+.\" Package:       esync
+.\" File:          esyncd.8
+.\" Summary:       Manpage for the esync daemon
+.\" Maintainer:    David Wicksell
+.\" Last Modified: Sep 5, 2014
+.\"
+.\" Written by David Wicksell <dlw@linux.com>
+.\" Copyright © 2010-2014 Fourth Watch Software, LC
+.\"
+.\" This program is free software: you can redistribute it and/or modify
+.\" it under the terms of the GNU Affero General Public License (AGPL)
+.\" as published by the Free Software Foundation, either version 3 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+.\" GNU Affero General Public License for more details.
+.\"
+
+
+.TH ESYNCD 8 "5 September 2014" "Version 0.2.0" "Fourth Watch Infrastructure"
+
+.SH NAME
+esyncd - An environment syncing daemon
+
+.SH SYNOPSIS
+.B esyncd
+.BI "-h " "secondary_host " "-u " "user_instance " directory ...
+
+.SH DESCRIPTION
+.B esyncd
+is a daemon that will keep environments synced between a GT.M primary and
+secondary instance.
+.PP
+Normally you wouldn't need to invoke it from the command line. It is
+intended to be run by init at system startup. 
+.PP
+.B The following command line flags are required.
+.IP -h
+Specifies the hostname of the secondary database instance that you wish to
+keep environments synced with.
+.IP -u
+Specifies the database instance user that should run
+.B esyncd.
+.PP
+You must also supply one or more 
+.B directories
+for it to watch. It will then keep all files in those directories synced
+between replicating database instances. So you add, remove, or modify a
+file in one of the watched directories on the primary, and it will
+immediately make the same modification on the secondary. Note that it will
+not recurse into directories in the directories that you specify.
+
+.SH OPTIONS
+There are no additional options.
+
+.SH BUGS
+Currently using the select(2) system call without a queue, so during network
+failures, files will not be synced, which can cause environments to be out
+of sync.
+
+.SH AUTHOR
+Written by David Wicksell <dlw@linux.com>
+
+.SH SEE ALSO
+inotify_init(2), inotify_add_watch(2), inotify_rm_watch(2), inotify(7)
