@@ -47,14 +47,14 @@ Then you run make install as root to install the daemon..
 Then you run the esync-install script as root to install the init
 script, add it to the appropriate system runlevels, install the man page
 for the daemon, and startup the various esyncd daemons..
-    $ sudo ./install-esync
+    $ sudo ./install
 
 That is pretty much all there is to it. If you have questions on how
 to use the esyncd daemon, consult the man page..
     $ man esyncd
 
 To uninstall the esync package..
-    $ sudo ./uninstall-esync
+    $ sudo ./uninstall
 
 If you need to clean up the object files, and the ELF executable, locally..
     $ make clean

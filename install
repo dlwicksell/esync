@@ -269,9 +269,9 @@ then
   then
     echo ""
     echo "Setting up syslog for esyncd"
-    echo ""                                                >>/etc/syslog.conf
+    echo ""                                         >>/etc/syslog.conf
     echo -n "# Save esync messages here "           >>/etc/syslog.conf
-    echo "(local mod for GT.M replication)."               >>/etc/syslog.conf
+    echo "(local mod for GT.M replication)."        >>/etc/syslog.conf
     echo -e "local0.*\t\t\t\t\t/var/log/esyncd.log" >>/etc/syslog.conf
   fi
 
